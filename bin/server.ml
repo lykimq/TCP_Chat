@@ -8,11 +8,11 @@ let handle_message msg oc =
   let open Lwt.Infix in
   let start_time = Unix.gettimeofday () in
   if msg = "quit" then
-    Logs_lwt.info (fun m -> m "Received 'quit' command. Server will now quit.")
+    Logs_lwt.info (fun m -> m "Received 'quit' command. Server will continue listening.")
     >>= fun () ->
     Lwt_io.close oc >>= fun () -> return `Quit
   else
-    Logs_lwt.info (fun m -> m " Received message from client: %s" msg)
+    Logs_lwt.info (fun m -> m "Received message from client: %s" msg)
     >>= fun () ->
     let reply = "Message received: " ^ msg in
     Lwt_io.write_line oc reply >>= fun () ->
@@ -60,18 +60,28 @@ let rec create_socket_with_retry retries =
       (fun () ->
         (bind sock @@ ADDR_INET (listening_address, port) |> fun x -> ignore x);
         listen sock backlog;
-        return (Some sock))
-      (fun _ex -> return None)
+        return sock)
+      (fun ex ->
+        Logs.err (fun m ->
+            m "Failed to bind socket: %s" (Printexc.to_string ex));
+        Lwt_unix.close sock >>= fun () ->
+        Lwt_unix.sleep 1.0 >>= fun () -> create_socket_with_retry (retries - 1))
     >>= function
-    | Some sock -> return sock
-    | None ->
-        (* Failed to bind, wait for a short period and retry *)
-        Lwt_unix.sleep 1.0 >>= fun () -> create_socket_with_retry (retries - 1)
+    | sock -> return sock
 
 let create_socket () =
   let max_retries = 5 in
   Lwt_main.run (create_socket_with_retry max_retries)
 
 let create_server sock =
-  let rec serve () = Lwt_unix.accept sock >>= accept_connection >>= serve in
+  let rec serve () =
+    Lwt_unix.accept sock >>= function
+    | client, client_addr ->
+        Lwt.catch
+          (fun () -> accept_connection (client, client_addr) >>= serve)
+          (fun ex ->
+            Logs.err (fun m ->
+                m "Error in connection handling: %s" (Printexc.to_string ex));
+            Lwt_unix.close client >>= fun () -> serve ())
+  in
   serve
