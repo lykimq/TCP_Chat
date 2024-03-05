@@ -1,8 +1,4 @@
 open Lwt
-
-let server_address = Unix.inet6_addr_loopback
-let port = 9000
-
 let usage () =
   Printf.printf "Usage: %s <server_address> <port>\n" Sys.argv.(0);
   exit 1
@@ -44,7 +40,11 @@ let run_client server_addr port =
   let open Lwt.Infix in
   connect_to_server server_addr port >>= fun (ic, oc) -> send_messages ic oc
 
-let () =
+let main () =
+  let () = Logs.set_reporter (Logs.format_reporter ()) in
+  let () = Logs.set_level (Some Logs.Info) in
+
+  (* Check command-line arguments *)
   match Array.length Sys.argv with
   | 3 ->
       let server_addr = Sys.argv.(1) in
@@ -55,3 +55,5 @@ let () =
         usage ())
       else Lwt_main.run (run_client server_addr port_num)
   | _ -> usage ()
+
+let () = main ()

@@ -1,14 +1,9 @@
 (executable
- (name main)
- (libraries server client unix logs logs.lwt lwt lwt.unix)
- (modules main))
-
-(library
  (name server)
  (libraries logs logs.lwt lwt lwt.unix)
  (modules server))
 
-(library
+(executable
  (name client)
  (libraries logs logs.lwt lwt lwt.unix)
  (modules client))
