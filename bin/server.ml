@@ -64,8 +64,8 @@ let rec create_socket_with_retry retries =
       (fun ex ->
         Logs.err (fun m ->
             m "Failed to bind socket: %s" (Printexc.to_string ex));
-        Lwt_unix.close sock >>= fun () ->
-        Lwt_unix.sleep 1.0 >>= fun () -> create_socket_with_retry (retries - 1))
+        close sock >>= fun () ->
+        sleep 1.0 >>= fun () -> create_socket_with_retry (retries - 1))
     >>= function
     | sock -> return sock
 
