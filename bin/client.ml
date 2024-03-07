@@ -54,14 +54,26 @@ let connect_to_server server_addr port =
         Lwt_unix.socket ai.Unix.ai_family ai.Unix.ai_socktype
           ai.Unix.ai_protocol
       in
-      Lwt_unix.connect socket sockaddr >>= fun () ->
-      let ic = Lwt_io.of_fd ~mode:Lwt_io.input socket in
-      let oc = Lwt_io.of_fd ~mode:Lwt_io.output socket in
-      return (ic, oc)
+      Lwt.catch
+        (fun () ->
+          Lwt_unix.connect socket sockaddr >>= fun () ->
+          let ic = Lwt_io.of_fd ~mode:Lwt_io.input socket in
+          let oc = Lwt_io.of_fd ~mode:Lwt_io.output socket in
+          return (Some (ic, oc)))
+        (fun ex ->
+          Lwt_unix.close socket >>= fun () ->
+          Printf.printf "Error: Failed to connect to server: %s\n"
+            (Printexc.to_string ex);
+          exit 1)
 
 let run_client server_addr port =
   let open Lwt.Infix in
-  connect_to_server server_addr port >>= fun (ic, oc) -> send_messages ic oc
+  connect_to_server server_addr port >>= function
+  | None -> Lwt.return_unit
+  | Some (ic, oc) ->
+      Lwt.finalize
+        (fun () -> send_messages ic oc)
+        (fun () -> Lwt_io.close ic >>= fun () -> Lwt_io.close oc)
 
 let main () =
   let () = Logs.set_reporter (Logs.format_reporter ()) in
