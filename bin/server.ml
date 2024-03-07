@@ -34,6 +34,13 @@ let rec handle_connection ic oc () =
       | `Continue -> handle_connection ic oc ())
   | None ->
       Logs_lwt.info (fun m -> m "Connection closed by client (end of input)")
+      >>= fun () ->
+      Lwt.catch
+        (fun () -> Lwt_io.close ic >>= fun () -> Lwt_io.close oc)
+        (fun ex ->
+          Logs.err (fun m ->
+              m "Failed to close connection: %s" (Printexc.to_string ex));
+          return_unit)
 
 let accept_connection conn =
   let open Lwt_io in
