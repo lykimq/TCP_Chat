@@ -93,10 +93,3 @@ let create_server sock =
             Lwt_unix.close client >>= fun () -> serve ())
   in
   serve
-
-let () =
-  let () = Logs.set_reporter (Logs.format_reporter ()) in
-  let () = Logs.set_level (Some Logs.Info) in
-  let sock = create_socket () in
-  let serve = create_server sock in
-  Lwt_main.run @@ serve ()

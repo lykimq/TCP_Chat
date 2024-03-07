@@ -76,11 +76,3 @@ let run_client server_addr port =
       Lwt.finalize
         (fun () -> send_messages ic oc)
         (fun () -> Lwt_io.close ic >>= fun () -> Lwt_io.close oc)
-
-let main () =
-  let () = Logs.set_reporter (Logs.format_reporter ()) in
-  let () = Logs.set_level (Some Logs.Info) in
-  let server_addr, port = parse_command_line () in
-  Lwt_main.run (run_client server_addr port)
-
-let () = main ()
