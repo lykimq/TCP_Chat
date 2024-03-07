@@ -3,7 +3,7 @@ let parse_command_line () =
   match Array.length Sys.argv with
   | 2 ->
       let role = Sys.argv.(1) in
-      if role = "server" then ("server", "localhost", Server.port)
+      if role = "server" then ("server", "localhost", !Server.port)
       else if role = "client" then (
         Logs.err (fun m -> m "Error: Server address and port not provided.");
         Logs.err (fun m ->
@@ -20,6 +20,10 @@ let parse_command_line () =
       let port_num = int_of_string port_str in
       if port_num < 0 || port_num > 65535 then (
         Logs.err (fun m -> m " Error: Invalid port number: %s" port_str);
+        exit 1)
+      else if server_addr <> "localhost" || port_num <> !Server.port then (
+        Logs.err (fun m ->
+            m "Error: Server address and port do not match the server.");
         exit 1)
       else (role, server_addr, port_num)
   | _ ->

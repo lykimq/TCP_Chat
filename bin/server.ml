@@ -1,7 +1,7 @@
 open Lwt
 
 let listening_address = Unix.inet_addr_loopback
-let port = 9000
+let port = ref 9000
 let backlog = 10
 
 let handle_message msg oc =
@@ -66,7 +66,7 @@ let rec create_socket_with_retry retries =
     let sock = socket PF_INET SOCK_STREAM 0 in
     Lwt.catch
       (fun () ->
-        (bind sock @@ ADDR_INET (listening_address, port) |> fun x -> ignore x);
+        (bind sock @@ ADDR_INET (listening_address, !port) |> fun x -> ignore x);
         listen sock backlog;
         return sock)
       (fun ex ->
