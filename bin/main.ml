@@ -1,6 +1,18 @@
 (* Function to parse command line arguments *)
 let parse_command_line () =
   match Array.length Sys.argv with
+  | 2 ->
+      let role = Sys.argv.(1) in
+      if role = "server" then ("server", "localhost", Server.port)
+      else if role = "client" then (
+        Logs.err (fun m -> m "Error: Server address and port not provided.");
+        Logs.err (fun m ->
+            m "Usage: %s <server|client> <server_address> <port>\n" Sys.argv.(0));
+        exit 1)
+      else (
+        Logs.err (fun m ->
+            m "Error: Invalid role specified. Use 'server' or 'client'.\n");
+        exit 1)
   | 4 ->
       let role = Sys.argv.(1) in
       let server_addr = Sys.argv.(2) in
