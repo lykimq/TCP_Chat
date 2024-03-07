@@ -3,14 +3,18 @@ open Lwt
 (* Function to parse command line arguments *)
 let parse_command_line () =
   match Array.length Sys.argv with
-  | 3 ->
+  | 3 -> (
       let server_addr = Sys.argv.(1) in
       let port_str = Sys.argv.(2) in
       let port_num = int_of_string port_str in
-      if port_num < 0 || port_num > 65535 then (
-        Printf.printf "Invalid port number: %s\n" port_str;
+      try
+        if port_num < 0 || port_num > 65535 then (
+          Printf.printf "Error: Invalid port number: %s\n" port_str;
+          exit 1)
+        else (server_addr, port_num)
+      with Failure _ ->
+        Printf.printf "Error: Failed to parse port number: %s\n" port_str;
         exit 1)
-      else (server_addr, port_num)
   | _ ->
       Printf.printf "Usage: %s <server_address> <port>\n" Sys.argv.(0);
       exit 1
@@ -40,16 +44,20 @@ let connect_to_server server_addr port =
   let open Lwt.Infix in
   Lwt_unix.getaddrinfo server_addr (string_of_int port)
     [ Unix.AI_SOCKTYPE Unix.SOCK_STREAM ]
-  >>= fun addresses ->
-  let sockaddr = List.hd addresses in
-  let socket =
-    Lwt_unix.socket sockaddr.Unix.ai_family sockaddr.Unix.ai_socktype
-      sockaddr.Unix.ai_protocol
-  in
-  Lwt_unix.connect socket sockaddr.Unix.ai_addr >>= fun () ->
-  let ic = Lwt_io.of_fd ~mode:Lwt_io.input socket in
-  let oc = Lwt_io.of_fd ~mode:Lwt_io.output socket in
-  return (ic, oc)
+  >>= function
+  | [] ->
+      Printf.printf "Error: No address found for: %s\n" server_addr;
+      exit 1
+  | ai :: _ ->
+      let sockaddr = ai.Unix.ai_addr in
+      let socket =
+        Lwt_unix.socket ai.Unix.ai_family ai.Unix.ai_socktype
+          ai.Unix.ai_protocol
+      in
+      Lwt_unix.connect socket sockaddr >>= fun () ->
+      let ic = Lwt_io.of_fd ~mode:Lwt_io.input socket in
+      let oc = Lwt_io.of_fd ~mode:Lwt_io.output socket in
+      return (ic, oc)
 
 let run_client server_addr port =
   let open Lwt.Infix in
