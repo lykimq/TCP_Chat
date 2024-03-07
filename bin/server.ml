@@ -4,6 +4,55 @@ let listening_address = Unix.inet_addr_loopback
 let port = ref 9000
 let backlog = 10
 
+(*let handle_message msg oc =
+    let open Lwt.Infix in
+    let start_time = Unix.gettimeofday () in
+    if msg = "quit" then
+      Logs_lwt.info (fun m ->
+          m "Received 'quit' command. Server will continue listening.")
+      >>= fun () ->
+      let response = "Acknowlegment sent for 'quit' command." in
+      Lwt_io.write_line oc response >>= fun () ->
+      Lwt_io.flush oc >>= fun () -> return `Quit
+    else
+      Logs_lwt.info (fun m -> m "Received message from client: %s" msg)
+      >>= fun () ->
+      let reply = "Message received: " ^ msg in
+      Lwt_io.write_line oc reply >>= fun () ->
+      let end_time = Unix.gettimeofday () in
+      let roundtrip_time = end_time -. start_time in
+      Logs_lwt.info (fun m ->
+          m "Roundtrip time for acknowledgement: %f seconds" roundtrip_time)
+      >>= fun () -> return `Continue
+
+  let rec handle_connection ic oc () =
+    let open Lwt.Infix in
+    Lwt_io.read_line_opt ic >>= function
+    | Some msg -> (
+        handle_message msg oc >>= function
+        | `Quit ->
+            Logs_lwt.info (fun m ->
+                m "Connection closed by client (quit command)")
+        | `Continue -> (
+            Lwt_io.read_line_opt Lwt_io.stdin >>= function
+            | Some reply ->
+                Lwt_io.write_line oc reply >>= fun () ->
+                handle_connection ic oc ()
+            | None ->
+                Logs_lwt.info (fun m ->
+                    m "No message to send, closing connection.")
+                >>= fun () ->
+                Lwt_io.close oc >>= fun () -> return_unit))
+    | None ->
+        Logs_lwt.info (fun m -> m "Connection closed by client (end of input)")
+        >>= fun () ->
+        Lwt.catch
+          (fun () -> Lwt_io.close ic >>= fun () -> Lwt_io.close oc)
+          (fun ex ->
+            Logs.err (fun m ->
+                m "Failed to close connection: %s" (Printexc.to_string ex));
+            return_unit)*)
+
 let handle_message msg oc =
   let open Lwt.Infix in
   let start_time = Unix.gettimeofday () in

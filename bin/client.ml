@@ -21,6 +21,49 @@ let parse_command_line () =
       exit 1
 
 (* Function to handle message communication *)
+(*let handle_message ic oc msg =
+    let open Lwt.Infix in
+    if msg = "quit" then
+      Logs_lwt.info (fun m ->
+          m "You have requested to quit. Sending 'quit' message to server.")
+      >>= fun () ->
+      Lwt_io.close oc >>= fun () -> return `Quit
+    else
+      Lwt_io.write_line oc msg >>= fun () ->
+      Lwt_io.read_line ic >>= fun response ->
+      Logs_lwt.info (fun m -> m "Server response: %s" response) >>= fun () ->
+      if response = "Acknowlegment sent for 'quit' command." then
+        Lwt_io.close oc >>= fun () -> return `Quit
+      else return `Continue
+
+  (* Function to send and receive messages *)
+  let send_receive_messages ic oc =
+    let rec send_receive_loop () =
+      Lwt_io.read_line_opt Lwt_io.stdin >>= function
+      | Some msg -> (
+          (* Send message to server *)
+          handle_message ic oc msg >>= function
+          | `Quit ->
+              Logs_lwt.info (fun m -> m "Exiting client.") >>= fun () ->
+              Lwt_io.close oc >>= fun () -> return_unit
+          | `Continue -> (
+              (* Receive response from server *)
+              Lwt_io.read_line_opt ic
+              >>= function
+              | Some response ->
+                  Logs_lwt.info (fun m -> m "Server response: %s" response)
+                  >>= fun () -> send_receive_loop ()
+              | None ->
+                  Logs_lwt.info (fun m -> m "Connection closed by server.")
+                  >>= fun () ->
+                  Lwt_io.close oc >>= fun () -> return_unit))
+      | None ->
+          Logs_lwt.info (fun m -> m "End of input, closing connection.")
+          >>= fun () ->
+          Lwt_io.close oc >>= fun () -> return_unit
+    in
+    send_receive_loop ()*)
+
 let handle_message ic oc msg =
   let open Lwt.Infix in
   Lwt_io.write_line oc msg >>= fun () ->
