@@ -1,6 +1,6 @@
 (executable
  (name main)
- (libraries server client logs logs.lwt lwt lwt.unix)
+ (libraries server client logs logs.lwt lwt lwt.unix cmdliner)
  (modules main))
 
 (library
