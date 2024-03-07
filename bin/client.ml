@@ -9,14 +9,15 @@ let parse_command_line () =
       let port_num = int_of_string port_str in
       try
         if port_num < 0 || port_num > 65535 then (
-          Printf.printf "Error: Invalid port number: %s\n" port_str;
+          Logs.err (fun m -> m "Error: Invalid port number: %s\n" port_str);
           exit 1)
         else (server_addr, port_num)
       with Failure _ ->
-        Printf.printf "Error: Failed to parse port number: %s\n" port_str;
+        Logs.err (fun m ->
+            m "Error: Failed to parse port number: %s\n" port_str);
         exit 1)
   | _ ->
-      Printf.printf "Usage: %s <server_address> <port>\n" Sys.argv.(0);
+      Logs.err (fun m -> m "Usage: %s <server_address> <port>\n" Sys.argv.(0));
       exit 1
 
 (* Function to handle message communication *)
@@ -46,7 +47,7 @@ let connect_to_server server_addr port =
     [ Unix.AI_SOCKTYPE Unix.SOCK_STREAM ]
   >>= function
   | [] ->
-      Printf.printf "Error: No address found for: %s\n" server_addr;
+      Logs.err (fun m -> m "Error: No address found for: %s\n" server_addr);
       exit 1
   | ai :: _ ->
       let sockaddr = ai.Unix.ai_addr in
@@ -62,8 +63,9 @@ let connect_to_server server_addr port =
           return (Some (ic, oc)))
         (fun ex ->
           Lwt_unix.close socket >>= fun () ->
-          Printf.printf "Error: Failed to connect to server: %s\n"
-            (Printexc.to_string ex);
+          Logs.err (fun m ->
+              m "Error: Failed to connect to server: %s\n"
+                (Printexc.to_string ex));
           exit 1)
 
 let run_client server_addr port =
