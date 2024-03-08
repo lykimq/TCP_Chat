@@ -1,6 +1,5 @@
 open Lwt
 
-(* Function to parse command line arguments *)
 let parse_command_line () =
   match Array.length Sys.argv with
   | 3 -> (
@@ -20,7 +19,6 @@ let parse_command_line () =
       Logs.err (fun m -> m "Usage: %s <server_address> <port>\n" Sys.argv.(0));
       exit 1
 
-(* Function to handle message communication *)
 let handle_message ic oc msg =
   let open Lwt.Infix in
   Lwt_io.write_line oc msg >>= fun () ->
@@ -40,7 +38,6 @@ let send_messages ic oc =
   in
   send_messages_loop ()
 
-(* Function to establish connection to the server *)
 let connect_to_server server_addr port =
   let open Lwt.Infix in
   Lwt_unix.getaddrinfo server_addr (string_of_int port)

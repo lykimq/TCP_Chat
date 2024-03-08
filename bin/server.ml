@@ -55,7 +55,6 @@ let accept_connection conn =
     (fun ex ->
       Logs.err (fun m ->
           m "Failed to accept connection: %s" (Printexc.to_string ex));
-      (* Close the socket descriptor if there is an error *)
       Lwt_unix.close fd)
   >>= fun () -> return_unit
 

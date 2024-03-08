@@ -12,3 +12,8 @@
  (name client)
  (libraries logs logs.lwt lwt lwt.unix)
  (modules client))
+
+(library
+ (name message_type)
+ (libraries logs logs.lwt lwt lwt.unix)
+ (modules message_type))
