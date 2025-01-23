@@ -24,9 +24,11 @@ UI is a choice - can be just a console.
 - You may use any 3rd-party general-purpose libraries (extlib, containers, lwt, etc)
 - Primary objectives: robustness, code simplicity and maintainability
 
-## Usage
+# Build and run
 
 ```
+make build
+
 make server port=<port_number>
 make client host=<hostname> port=<port_number>
 ```
