@@ -1,6 +1,8 @@
-(lang dune 3.14)
+(lang dune 3.0)
 
 (name TCP_Chat)
+
+(version 0.1.0)
 
 (generate_opam_files true)
 
@@ -17,10 +19,17 @@
 
 (package
  (name TCP_Chat)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml dune)
- (tags
-  (topics "to describe" your project)))
+ (synopsis "TCP Chat Application")
+ (description "A simple TCP chat application with server and client modes")
+ (depends
+  (ocaml (>= 4.14.0))
+  (dune (>= 3.0))
+  (lwt (>= 5.6.1))
+  (lwt_ppx (>= 2.1.0))
+  (logs (>= 0.7.0))
+  (fmt (>= 0.9.0))
+  (cmdliner (>= 1.1.0))
+  (alcotest :with-test)
+  (alcotest-lwt :with-test)))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/dune-files.html#dune-project

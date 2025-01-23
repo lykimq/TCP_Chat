@@ -1,74 +1,40 @@
-open Cmdliner
+open TCP_Chat
 
-type role = Server | Client
+let setup_logging () =
+  Logs.set_reporter (Logs.format_reporter ());
+  Logs.set_level (Some Logs.Info)
 
-let role =
-  let doc = "Specify the role (server or client)." in
-  Arg.(
-    required
-    & pos 0 (some (enum [ ("server", Server); ("client", Client) ])) None
-    & info [] ~docv:"ROLE" ~doc)
+let print_usage () =
+  Printf.printf "Usage:\n";
+  Printf.printf " As server: %s server [port]\n" Sys.argv.(0);
+  Printf.printf " As client: %s client <host> [port]\n" Sys.argv.(0);
+  exit 1
 
-let server_addr =
-  let doc = "Server address." in
-  Arg.(
-    value & opt string "localhost"
-    & info [ "s"; "server-addr" ] ~docv:"ADDR" ~doc)
+let parse_port default_port = function
+  | None -> default_port
+  | Some port_str -> (
+    try int_of_string port_str
+    with _ ->
+      Printf.printf "Invalid port number: %s\n" port_str;
+      exit 1 )
 
-let port =
-  let doc = "Port number." in
-  Arg.(value & opt int 9000 & info [ "p"; "port" ] ~docs:"PORT" ~doc)
+let () =
+  setup_logging ();
 
-let start_client server_addr port =
-  Logs.info (fun m -> m "Starting client ...");
-  Lwt_main.run (Client.run_client server_addr port)
-
-let start_server () =
-  Logs.info (fun m -> m "Starting server ...");
-  let sock = Server.create_socket () in
-  let serve = Server.create_server sock in
-  Lwt_main.run @@ serve ()
-
-let parse_command_line role server_addr port =
-  match role with
-  | Server -> ("server", server_addr, port)
-  | Client -> ("client", server_addr, port)
-
-let main role server_addr port =
-  let () = Logs.set_reporter (Logs.format_reporter ()) in
-  let () = Logs.set_level (Some Logs.Info) in
-  let role, server_addr, port = parse_command_line role server_addr port in
-  match role with
-  | "server" -> start_server ()
-  | "client" -> start_client server_addr port
-  | _ ->
-      Logs.err (fun m ->
-          m "Error: Invalid role specified. Use 'server' or 'client'.\n");
-      exit 1
-
-let cmd =
-  let doc = "A simple server-client application." in
-  let exits = Cmd.Exit.defaults in
-  let man =
-    [
-      `S "DESCRIPTION";
-      `P "This program starts either a server or a client.";
-      `S "USAGE";
-      `P "$(tname) $(i, ROLE) [$(i, SERVER_ADDR) $(i, PORT)]";
-      `S "OPTIONS";
-      `P "$(b, ROLE) can be either 'server' or 'client'.";
-      `P
-        "$(b, SERVER_ADDR) specifies the server address. Default is \
-         'localhost'.";
-      `P "$(b, PORT) specifies the port number. Default is 9000.";
-      `S "EXAMPLES";
-      `P "$(tname) server                 # Start the server";
-      `P
-        "$(tname) client localhost 9000  # Connect to server at localhost on \
-         port 9000";
-    ]
+  let mode, host, port =
+    match Array.to_list Sys.argv with
+    | [] | [_] -> print_usage ()
+    | _ :: "server" :: port_opt :: _ ->
+      (`Server, Config.default_host, parse_port Config.port (Some port_opt))
+    | [_; "server"] -> (`Server, Config.default_host, Config.port)
+    | _ :: "client" :: host :: port_opt :: _ ->
+      (`Client, host, parse_port Config.port (Some port_opt))
+    | [_; "client"; host] -> (`Client, host, Config.port)
+    | _ -> print_usage ()
   in
-  let term = Term.(const main $ role $ server_addr $ port) in
-  Cmd.v (Cmd.info "server-client" ~doc ~exits ~man) term
-
-let () = exit (Cmd.eval cmd)
+  let main_thread =
+    match mode with
+    | `Server -> Server.start_server port
+    | `Client -> Client.start_client host port
+  in
+  Lwt_main.run main_thread

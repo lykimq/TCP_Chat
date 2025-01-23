@@ -1,19 +1,7 @@
 (executable
  (name main)
- (libraries server client logs logs.lwt lwt lwt.unix cmdliner)
- (modules main))
-
-(library
- (name server)
- (libraries logs logs.lwt lwt lwt.unix)
- (modules server))
-
-(library
- (name client)
- (libraries logs logs.lwt lwt lwt.unix)
- (modules client))
-
-(library
- (name message_type)
- (libraries logs logs.lwt lwt lwt.unix)
- (modules message_type))
+ (public_name TCP_Chat)
+ (package TCP_Chat)
+ (libraries TCP_Chat lwt lwt.unix logs logs.fmt fmt.tty cmdliner)
+ (preprocess
+  (pps lwt_ppx)))

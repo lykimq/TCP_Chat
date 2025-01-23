@@ -1,2 +1,8 @@
 (test
- (name test_chat_server))
+ (name tcp_chat_test)
+ (libraries
+  TCP_Chat
+  alcotest
+  alcotest-lwt)
+ (preprocess
+  (pps lwt_ppx)))
