@@ -9,6 +9,7 @@ let get_addr host =
   let he = Unix.gethostbyname host in
   he.Unix.h_addr_list.(0)
 
+(* Connect to server *)
 let connect_to_server host port =
   let addr =
     try get_addr host
@@ -23,32 +24,15 @@ let connect_to_server host port =
   let oc = Lwt_io.of_fd ~mode:Lwt_io.Output socket in
   Lwt.return {ic; oc; socket}
 
-let handle_incoming_messages t =
-  let rec read_loop () =
-    Common.read_message t.ic >>= function
-    | None ->
-      Logs.info (fun m -> m "Server disconnected");
-      Lwt.return_unit
-    | Some message -> (
-      match message.Message.msg_type with
-      | Message.Chat msg ->
-        Printf.printf "\nReceived: %s\n> " msg;
-        flush stdout;
-        (* Send acknowledgement *)
-        let ack = Message.create (Message.Ack message.Message.timestamp) in
-        Common.write_message t.oc ack >>= fun () -> read_loop ()
-      | Message.Ack _ ->
-        let rtt = Common.calculate_rtt message.Message.timestamp in
-        Printf.printf "\nMessage acknowledged (RTT: %.2f ms)\n> " rtt;
-        flush stdout;
-        read_loop () )
-  in
-  read_loop ()
+(* Handle connection to server *)
+let handle_connection t = Common.handle_connection t.ic t.oc "server"
 
+(* Send message to server *)
 let send_message t content =
   let message = Message.create (Message.Chat content) in
   Common.write_message t.oc message
 
+(* Main client entry point *)
 let start_client host port =
   Logs.info (fun m -> m "Starting client on %s:%d" host port);
 
@@ -77,7 +61,7 @@ let start_client host port =
   (* Start message receiver in background *)
   let receiver =
     Lwt.catch
-      (fun () -> handle_incoming_messages client)
+      (fun () -> handle_connection client)
       (function
         | Unix.Unix_error (Unix.EBADF, _, _) ->
           should_exit := true;
@@ -96,7 +80,7 @@ let start_client host port =
         should_exit := true;
         Lwt.return_unit )
       else
-        send_message client input >>= fun () ->
+        send_message client (Bytes.of_string input) >>= fun () ->
         Printf.printf "> ";
         flush stdout;
         input_loop ()

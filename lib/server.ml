@@ -14,40 +14,7 @@ let create_server port =
   Lwt.return {socket; address}
 
 let handle_client ic oc client_addr =
-  let rec message_loop () =
-    Common.read_message ic >>= function
-    | None ->
-      Logs.info (fun m -> m "Client disconnected normally");
-      Lwt.return_unit
-    | Some message -> (
-      match message.Message.msg_type with
-      | Message.Chat content ->
-        Printf.printf "\nReceived from %s: %s\n> "
-          (Unix.string_of_inet_addr
-             ( match client_addr with
-             | Unix.ADDR_INET (addr, _) -> addr
-             | _ -> Unix.inet_addr_loopback ) )
-          content;
-        flush stdout;
-        (* Send acknowledgement *)
-        let ack = Message.create (Message.Ack message.Message.timestamp) in
-        Common.write_message oc ack >>= fun () -> message_loop ()
-      | Message.Ack _ -> message_loop () )
-  in
-  Lwt.catch
-    (fun () -> message_loop ())
-    (function
-      | Unix.Unix_error (Unix.ECONNRESET, _, _)
-      | Unix.Unix_error (Unix.EPIPE, _, _)
-      | Unix.Unix_error (Unix.EBADF, _, _) ->
-        Logs.info (fun m ->
-            m "Client disconnected: %s"
-              (Unix.string_of_inet_addr
-                 ( match client_addr with
-                 | Unix.ADDR_INET (addr, _) -> addr
-                 | _ -> Unix.inet_addr_loopback ) ) );
-        Lwt.return_unit
-      | e -> Lwt.fail e )
+  Common.handle_connection ic oc (Common.format_addr client_addr)
 
 let start_server port =
   Logs.info (fun m -> m "Starting server on port %d" port);

@@ -5,7 +5,9 @@
   lwt
   lwt.unix
   logs
-  fmt)
+  fmt
+  unix
+  )
  (modules
   config
   message

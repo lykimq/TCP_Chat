@@ -1,19 +1,16 @@
 # TCP_Chat
 
-Application should start in two modes:
+- Application should start in two modes:
+    - as a server, waiting for one client to connect or;
+    - as a client, taking an IP address (or hostname) of server to connect to.
 
-- as a server, waiting for one client to connect or;
-- as a client, taking an IP address (or hostname) of server to connect to.
+- After connection is established, user on either side (server and client) can send messages to the other side.
 
-After connection is established, user on either side (server and client) can send messages to the other side.
+- After connection is terminated by the client, server continues waiting for another client.
 
-After connection is terminated by the client, server continues waiting for another client.
-
-The receiving side should acknowledge every incoming message (automatically send back a "message received" indication),
-sending side should show the roundtrip time for acknowledgment.
+- The receiving side should acknowledge every incoming message (automatically send back a "message received" indication), sending side should show the roundtrip time for acknowledgment.
 
 Wire protocol shouldn't make any assumptions on the message contents (e.g. allowed byte values, character encoding, etc).
-
 
 UI is a choice - can be just a console.
 
