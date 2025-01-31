@@ -1,7 +1,8 @@
-(test
- (name tcp_chat_test)
+(tests
+ (names message_alcotest_test connection_ounit_test)
  (libraries
   TCP_Chat
+  ounit2
   alcotest
   alcotest-lwt)
  (preprocess

@@ -1,4 +1,4 @@
-.PHONY: build clean server client
+.PHONY: build clean server client test
 
 # Default build
 build:
@@ -22,3 +22,8 @@ client: build
 		exit 1; \
 	fi
 	dune exec ./bin/main.exe client $(host) $(if $(port),$(port),8080)
+
+# Run all tests
+test: build
+	dune runtest --force
+	@echo "All tests completed."

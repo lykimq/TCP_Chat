@@ -36,20 +36,40 @@ let send_message t content =
 let start_client host port =
   Logs.info (fun m -> m "Starting client on %s:%d" host port);
 
-  let rec connect_with_retry () =
-    Lwt.catch
-      (fun () -> connect_to_server host port)
-      (function
-        | Unix.Unix_error (Unix.ECONNREFUSED, _, _) ->
-          Logs.err (fun m ->
-              m "Connection refused by server. Retrying in %.0f seconds..."
-                Config.reconnect_delay );
-          Lwt_unix.sleep Config.reconnect_delay >>= connect_with_retry
-        | e ->
-          Logs.err (fun m ->
-              m "Failed to connect to server: %s" (Printexc.to_string e) );
-          Lwt.fail e )
+  let rec connect_with_retry ?(attempt = 1) () =
+    let max_attempts = Config.max_retry_attempts in
+    let delay =
+      min (Config.reconnect_delay *. float_of_int attempt) Config.max_delay
+    in
+
+    if attempt > max_attempts
+    then Lwt.fail (Failure "Maximum connection attempts exceeded")
+    else
+      Lwt.catch
+        (fun () -> connect_to_server host port)
+        (function
+          | Unix.Unix_error (error, _, _) as e -> begin
+            match error with
+            | Unix.ECONNREFUSED | Unix.ECONNRESET | Unix.ECONNABORTED
+            | Unix.ENETUNREACH ->
+              Logs.warn (fun m ->
+                  m
+                    "Connection attempt %d/%d failed: %s. Retrying in %.1f \
+                     seconds..."
+                    attempt max_attempts (Unix.error_message error) delay );
+              Lwt_unix.sleep delay >>= fun () ->
+              connect_with_retry ~attempt:(attempt + 1) ()
+            | _ ->
+              Logs.err (fun m ->
+                  m "Fatal connection error: %s" (Printexc.to_string e) );
+              Lwt.fail e
+          end
+          | e ->
+            Logs.err (fun m ->
+                m "Failed to connect to server: %s" (Printexc.to_string e) );
+            Lwt.fail e )
   in
+
   connect_with_retry () >>= fun client ->
   Logs.info (fun m ->
       m "Connected to server. Type your messages (or /quit to exit):" );

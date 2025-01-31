@@ -1,4 +1,5 @@
 open TCP_Chat
+open Lwt.Infix
 
 let setup_logging () =
   Logs.set_reporter (Logs.format_reporter ());
@@ -34,7 +35,7 @@ let () =
   in
   let main_thread =
     match mode with
-    | `Server -> Server.start_server port
+    | `Server -> Server.start_server port >>= fun _server -> Lwt.return_unit
     | `Client -> Client.start_client host port
   in
   Lwt_main.run main_thread

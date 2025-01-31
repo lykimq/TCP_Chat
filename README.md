@@ -21,7 +21,24 @@ UI is a choice - can be just a console.
 - You may use any 3rd-party general-purpose libraries (extlib, containers, lwt, etc)
 - Primary objectives: robustness, code simplicity and maintainability
 
-# Build and run
+## Architecture
+- Client-server model using OCaml with Lwt for asynchronous I/O
+- TCP-based communication
+- Message protocol with timestamp and acknowledgment
+- Support for chat messages and acknowledgments
+
+## Features
+- Reconnection logic with exponential backoff
+- Round-trip time (RTT) measurement
+- Clean shutdown handling
+- Message acknowledgment system
+- Strictly one client at a time
+
+## Connection Capacity
+- Server can hanlde one client at a time
+- Each client connect runs in its own async thread
+
+## Build and run
 
 ```
 make build
