@@ -13,5 +13,3 @@ val send_message : t -> bytes -> unit Lwt.t
 val start_client : string -> int -> unit Lwt.t
 
 val stop_client : t -> unit Lwt.t
-
-val cleanup_client : t -> unit Lwt.t
