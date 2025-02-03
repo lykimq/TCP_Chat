@@ -19,22 +19,21 @@
 (** Message type variants *)
 type message_type =
   | Chat of bytes  (** Chat message containing content *)
-  | Ack of float   (** Acknowledgment message containing original timestamp *)
+  | Ack of float  (** Acknowledgment message containing original timestamp *)
 
+type t =
+  { msg_type : message_type  (** Type of the message *)
+  ; timestamp : float  (** Timestamp when message was created *) }
 (** Message record type *)
-type t = {
-  msg_type : message_type;  (** Type of the message *)
-  timestamp : float         (** Timestamp when message was created *)
-}
 
-(** Create a new message *)
 val create : message_type -> t
+(** Create a new message *)
 
-(** Convert message to bytes for wire transmission *)
 val to_bytes : t -> bytes
+(** Convert message to bytes for wire transmission *)
 
-(** Convert bytes to message *)
 val of_bytes : bytes -> t
+(** Convert bytes to message *)
 
-(** Get the content of a message *)
 val message_get_content : t -> string
+(** Get the content of a message *)

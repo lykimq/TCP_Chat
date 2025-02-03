@@ -1,65 +1,65 @@
-# TCP_Chat
+# TCP Chat
 
-- Application should start in two modes:
-    - as a server, waiting for one client to connect or;
-    - as a client, taking an IP address (or hostname) of server to connect to.
-
-- After connection is established, user on either side (server and client) can send messages to the other side.
-
-- After connection is terminated by the client, server continues waiting for another client.
-
-- The receiving side should acknowledge every incoming message (automatically send back a "message received" indication), sending side should show the roundtrip time for acknowledgment.
-
-Wire protocol shouldn't make any assumptions on the message contents (e.g. allowed byte values, character encoding, etc).
-
-UI is a choice - can be just a console.
-
-## Requirements:
-
-- Application is to be compiled and run on Linux
-- Implementation language: OCaml
-- You may use any 3rd-party general-purpose libraries (extlib, containers, lwt, etc)
-- Primary objectives: robustness, code simplicity and maintainability
-
-## Architecture
-- Client-server model using OCaml with Lwt for asynchronous I/O
-- TCP-based communication
-- Message protocol with timestamp and acknowledgment
-- Support for chat messages and acknowledgments
+A robust TCP-based chat application implemented in OCaml that enables real-time communication between a server and client with message acknowledgment functionality.
 
 ## Features
-- Reconnection logic with exponential backoff
-- Round-trip time (RTT) measurement
-- Clean shutdown handling
-- Message acknowledgment system
-- Strictly one client at a time
 
-## Connection Capacity
-- Server can hanlde one client at a time
-- Each client connect runs in its own async thread
+- **Dual-Mode Operation**
+  - Server mode: Accepts incoming client connections
+  - Client mode: Connects to a specified server via IP/hostname
 
-## Build and run
+- **Real-Time Communication**
+  - Bidirectional messaging between server and client
+  - Automatic message acknowledgment system
+  - Round-trip time (RTT) measurement for each message
 
-```
-# Display help
-make help
+- **Robust Architecture**
+  - Asynchronous I/O using Lwt
+  - Clean shutdown handling
+  - Protocol-agnostic message handling (supports any byte values/encodings)
+  - Single client per server design
 
-# Setup all dependencies
+## Prerequisites
+
+- Linux operating system
+- OCaml compiler
+- OPAM (OCaml package manager)
+
+## Installation
+
+```bash
+# Install dependencies
 make setup
 
 # Build the application
 make build
-
-# Run the server, default port is 8080
-make server [port=<port_number>]
-
-# Run the client, default port is 8080, default host is localhost
-make client [host=<hostname>] [port=<port_number>]
 ```
 
-## Test
-- The tests are written using Alcotest.
+## Usage
 
+### Starting the Server
+For simplicity the server host is always localhost. And client will connect to it.
+
+```bash
+# Default port (8080)
+make server
+
+# Custom port
+make server port=3000
 ```
+
+### Starting the Client
+
+```bash
+# Connect to server host=localhost and port=8080
+make client
+
+# Custom port
+make client port=3000
+```
+
+### Running Tests
+
+```bash
 make test
 ```
