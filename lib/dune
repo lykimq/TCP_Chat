@@ -1,18 +1,7 @@
 (library
  (name TCP_Chat)
  (public_name TCP_Chat)
- (libraries
-  lwt
-  lwt.unix
-  logs
-  fmt
-  unix
-  )
- (modules
-  config
-  message
-  common
-  server
-  client)
+ (libraries lwt lwt.unix logs fmt unix)
+ (modules config message common server client)
  (preprocess
   (pps lwt_ppx)))

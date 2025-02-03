@@ -21,3 +21,6 @@ val send_message : t -> bytes -> unit Lwt.t
 
 (** Start client with connection retry logic *)
 val start_client : string -> int -> unit Lwt.t
+
+(** Stop client gracefully *)
+val stop_client : t -> unit Lwt.t

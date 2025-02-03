@@ -1,4 +1,4 @@
-.PHONY: build clean server client test setup
+.PHONY: build clean server client test setup fmt
 
 # Default build
 build:
@@ -32,3 +32,6 @@ setup:
 	opam update
 	opam install . --deps-only
 	@echo "Setup completed."
+
+fmt:
+	dune build @fmt --auto-promote

@@ -1,10 +1,17 @@
 open Lwt.Infix
 
+type client_connection = {
+  socket: Lwt_unix.file_descr;
+  ic: Lwt_io.input_channel;
+  oc: Lwt_io.output_channel;
+  addr: Unix.sockaddr;
+}
+
 type t =
   { socket : Lwt_unix.file_descr
   ; address : Unix.sockaddr
   ; mutable running : bool
-  ; mutable current_client : Lwt_unix.file_descr option
+  ; mutable current_client : client_connection option
   ; shutdown_complete : unit Lwt.u * unit Lwt.t }
 
 let create_server port =
@@ -42,10 +49,10 @@ let stop_server server =
     Lwt_unix.close server.socket >>= fun () ->
     (* If there's an active client connection, close it *)
     match server.current_client with
-    | Some client_socket ->
-      let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_socket in
-      let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_socket in
-      Lwt.join [Lwt_io.close ic; Lwt_io.close oc; Lwt_unix.close client_socket]
+    | Some client_connection ->
+      let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_connection.socket in
+      let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_connection.socket in
+      Lwt.join [Lwt_io.close ic; Lwt_io.close oc; Lwt_unix.close client_connection.socket]
     | None -> Lwt.return_unit
   in
   server.running <- false;
@@ -61,7 +68,7 @@ let start_server port =
       Lwt_unix.accept server.socket >>= fun (client_sock, client_addr) ->
       Logs.debug (fun m ->
           m "Accepted new connection from %s" (Common.format_addr client_addr) );
-      server.current_client <- Some client_sock;
+      server.current_client <- Some {socket = client_sock; addr = client_addr; ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock; oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock};
       let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
       let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
       handle_client ic oc client_addr >>= fun () ->
@@ -92,11 +99,25 @@ let accept_connections server =
           Lwt_unix.accept server.socket >>= fun (client_sock, client_addr) ->
           let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
           let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
-          handle_client ic oc client_addr >>= fun () -> accept_loop () )
+          (* Set the current client *)
+          server.current_client <- Some {
+            socket = client_sock;
+            addr = client_addr;
+            ic;
+            oc
+          };
+          handle_client ic oc client_addr >>= fun () ->
+          (* Clear the current client after handling *)
+          server.current_client <- None;
+          Lwt_unix.close client_sock >>= fun () ->
+          accept_loop () )
         (function
           | Unix.Unix_error (Unix.EBADF, _, _) when not server.running ->
-            (* Normal termination when server is stopping *)
             Lwt.return_unit
           | e -> Lwt.fail e )
   in
   accept_loop ()
+
+let send_message (t: client_connection) content =
+  let message = Message.create (Message.Chat content) in
+  Common.write_message t.oc message
