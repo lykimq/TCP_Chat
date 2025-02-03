@@ -1,5 +1,5 @@
 (tests
- (names message_alcotest connection_alcotest server_alcotest)
- (libraries TCP_Chat ounit2 alcotest alcotest-lwt)
+ (names message_alcotest connection_alcotest)
+ (libraries TCP_Chat logs alcotest alcotest-lwt)
  (preprocess
   (pps lwt_ppx)))

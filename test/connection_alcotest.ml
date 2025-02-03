@@ -30,11 +30,46 @@ let cleanup_server (server : Server.t) accept_thread =
       | Unix.Unix_error (Unix.EBADF, _, _) -> Lwt.return_unit | e -> Lwt.fail e
       )
 
-let test_server_client_connection () =
-  let server, accept_thread = setup_test_environment Config.port in
+let test_client_connect_disconnect () =
+  Lwt_main.run
+    (let port = 8080 + Random.int 100 in
+     let server, accept_thread = setup_test_environment port in
+     (* Connect a client *)
+     Client.connect_to_server Config.default_host port >>= fun client ->
+     (* Verify client is registered *)
+     check bool "client is registered" true (server.current_client <> None);
+     (* Cleanup *)
+     Client.stop_client client >>= fun () ->
+     (* Give some time for the server to process the disconnection *)
+     Lwt_unix.sleep 0.1 >>= fun () ->
+     (* Verify client is unregistered *)
+     check bool "client is unregistered" true (server.current_client = None);
+     cleanup_server server accept_thread >>= fun () -> Lwt.return_unit )
+
+let test_server_client_communication () =
+  let port = 8081 + Random.int 100 in
+  let server, accept_thread = setup_test_environment port in
 
   let client_test =
-    Client.connect_to_server Config.default_host Config.port >>= fun client ->
+    Client.connect_to_server Config.default_host port >>= fun client ->
+    (* Wait for client to be registered *)
+    Lwt_unix.sleep 1.0 >>= fun () ->
+    let test_message = "Hello, Server!" in
+    Client.send_message client (Bytes.of_string test_message) >>= fun () ->
+    Lwt_unix.sleep 0.5 >>= fun () ->
+    Client.stop_client client >>= fun () -> Lwt_unix.sleep 0.5
+  in
+  (* Run client test and cleanup *)
+  wait_for client_test;
+  wait_for (cleanup_server server accept_thread);
+  Alcotest.(check bool) "server client communication" true true
+
+let test_server_client_bidirectional_communication () =
+  let port = 8082 + Random.int 100 in
+  let server, accept_thread = setup_test_environment port in
+
+  let client_test =
+    Client.connect_to_server Config.default_host port >>= fun client ->
     (* Wait for client to be registered *)
     Lwt_unix.sleep 1.0 >>= fun () ->
     let test_message = "Hello, Server!" in
@@ -52,13 +87,17 @@ let test_server_client_connection () =
     Lwt_unix.sleep 0.5 >>= fun () ->
     Client.stop_client client >>= fun () -> Lwt_unix.sleep 0.5
   in
-
   (* Run client test and cleanup *)
   wait_for client_test;
   wait_for (cleanup_server server accept_thread);
   Alcotest.(check bool) "Test completed" true true
 
 let connection_tests =
-  [test_case "Server client connection" `Quick test_server_client_connection]
+  [ test_case "Client connection and disconnect" `Quick
+      test_client_connect_disconnect
+  ; test_case "Server client communication" `Quick
+      test_server_client_communication
+  ; test_case "Server client bidirectional communication" `Quick
+      test_server_client_bidirectional_communication ]
 
 let () = Alcotest.run "TCP Chat Tests" [("connection", connection_tests)]

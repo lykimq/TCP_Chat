@@ -7,14 +7,8 @@ type t = {
   socket : Lwt_unix.file_descr
 }
 
-(** Resolve hostname to IP address *)
-val get_addr : string -> Unix.inet_addr
-
 (** Connect to chat server *)
 val connect_to_server : string -> int -> t Lwt.t
-
-(** Handle connection to server, managing message exchange *)
-val handle_connection : t -> unit Lwt.t
 
 (** Send message to server *)
 val send_message : t -> bytes -> unit Lwt.t
