@@ -70,3 +70,8 @@ let of_bytes bytes =
   with
   | Invalid_argument _ as e -> raise e
   | _ -> raise (Invalid_argument "Invalid message format")
+
+let message_get_content msg =
+  match msg.msg_type with
+  | Chat content -> Bytes.to_string content
+  | Ack _ -> raise (Invalid_argument "Message is an ACK, no content")

@@ -35,3 +35,6 @@ val to_bytes : t -> bytes
 
 (** Convert bytes to message *)
 val of_bytes : bytes -> t
+
+(** Get the content of a message *)
+val message_get_content : t -> string

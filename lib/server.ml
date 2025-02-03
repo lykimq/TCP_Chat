@@ -1,16 +1,9 @@
 open Lwt.Infix
 
-type client_connection = {
-  socket: Lwt_unix.file_descr;
-  ic: Lwt_io.input_channel;
-  oc: Lwt_io.output_channel;
-  addr: Unix.sockaddr;
-}
-
 type t =
   { socket : Lwt_unix.file_descr
   ; address : Unix.sockaddr
-  ; mutable current_client : client_connection option }
+  ; mutable current_client : (Lwt_io.output_channel * Unix.sockaddr) option }
 
 let create_server port =
   let open Lwt_unix in
@@ -22,10 +15,7 @@ let create_server port =
   bind socket address >>= fun () ->
   listen socket Config.max_connections;
   Logs.debug (fun m -> m "Server created and listening");
-  Lwt.return
-    { socket
-    ; address
-    ; current_client = None }
+  Lwt.return {socket; address; current_client = None}
 
 let handle_client ic oc client_addr =
   Logs.debug (fun m ->
@@ -44,13 +34,54 @@ let stop_server server =
     Lwt_unix.close server.socket >>= fun () ->
     (* If there's an active client connection, close it *)
     match server.current_client with
-    | Some client_connection ->
-      let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_connection.socket in
-      let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_connection.socket in
-      Lwt.join [Lwt_io.close ic; Lwt_io.close oc; Lwt_unix.close client_connection.socket]
+    | Some (oc, _) -> Lwt_io.close oc
     | None -> Lwt.return_unit
   in
   cleanup
+
+let cleanup_client_connection ic oc client_sock =
+  Lwt.catch
+    (fun () ->
+      Lwt_io.close ic >>= fun () ->
+      Lwt_io.close oc >>= fun () -> Lwt_unix.close client_sock )
+    (function
+      | Unix.Unix_error (Unix.EBADF, _, _) -> Lwt.return_unit
+      | e ->
+        Logs.err (fun m -> m "Error during cleanup: %s" (Printexc.to_string e));
+        Lwt.return_unit )
+
+let handle_client_error = function
+  | End_of_file ->
+    Logs.debug (fun m -> m "Client disconnected normally");
+    Lwt.return_unit
+  | e ->
+    Logs.err (fun m -> m "Error handling client: %s" (Printexc.to_string e));
+    Lwt.return_unit
+
+let update_client_state server client_addr =
+  match server.current_client with
+  | Some (_, addr) when addr = client_addr ->
+    server.current_client <- None;
+    Logs.debug (fun m -> m "Cleared client from server state")
+  | _ -> ()
+
+let handle_single_client server client_sock client_addr =
+  let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
+  let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
+  server.current_client <- Some (oc, client_addr);
+  Logs.debug (fun m -> m "Client registered in server state");
+
+  Lwt.finalize
+    (fun () ->
+      Lwt.catch
+        (fun () ->
+          handle_client ic oc client_addr >>= fun () ->
+          Logs.debug (fun m -> m "Client handling completed normally");
+          Lwt.return_unit )
+        handle_client_error )
+    (fun () ->
+      update_client_state server client_addr;
+      cleanup_client_connection ic oc client_sock )
 
 let accept_connections server =
   let rec accept_loop () =
@@ -58,62 +89,25 @@ let accept_connections server =
       (fun () ->
         Logs.debug (fun m -> m "Waiting for client connection...");
         Lwt_unix.accept server.socket >>= fun (client_sock, client_addr) ->
-        let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
-        let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
-        let client = {
-          socket = client_sock;
-          addr = client_addr;
-          ic;
-          oc
-        } in
-
-        server.current_client <- Some client;
-        Logs.debug (fun m -> m "Client registered in server state");
-
-        Lwt.finalize
-          (fun () ->
-            Lwt.catch
-              (fun () ->
-                handle_client ic oc client_addr >>= fun () ->
-                Logs.debug (fun m -> m "Client handling completed normally");
-                Lwt.return_unit)
-              (fun e ->
-                match e with
-                | End_of_file ->
-                    Logs.debug (fun m -> m "Client disconnected normally");
-                    Lwt.return_unit
-                | e ->
-                    Logs.err (fun m -> m "Error handling client: %s" (Printexc.to_string e));
-                    Lwt.return_unit))
-          (fun () ->
-            (match server.current_client with
-             | Some c when c.socket = client_sock ->
-                 server.current_client <- None;
-                 Logs.debug (fun m -> m "Cleared client from server state")
-             | _ -> ());
-
-            Lwt.catch
-              (fun () ->
-                Lwt.join [
-                  Lwt_io.close ic;
-                  Lwt_io.close oc;
-                  Lwt_unix.close client_sock
-                ])
-              (fun e ->
-                Logs.warn (fun m -> m "Error during cleanup: %s" (Printexc.to_string e));
-                Lwt.return_unit))
-        >>= fun () ->
-        accept_loop ())
+        handle_single_client server client_sock client_addr >>= fun () ->
+        accept_loop () )
       (function
         | Unix.Unix_error (Unix.EBADF, _, _) ->
           Logs.info (fun m -> m "Server stopped, closing accept loop");
           Lwt.return_unit
         | e ->
           Logs.err (fun m -> m "Accept loop error: %s" (Printexc.to_string e));
-          accept_loop ())
+          accept_loop () )
   in
   accept_loop ()
 
-let send_message (t: client_connection) content =
-  let message = Message.create (Message.Chat content) in
-  Common.write_message t.oc message
+let send_message server content =
+  match server.current_client with
+  | Some (oc, addr) ->
+    let message = Message.create (Message.Chat content) in
+    Logs.debug (fun m ->
+        m "Sending message to client at %s" (Common.format_addr addr) );
+    Common.write_message oc message >>= fun () -> Lwt.return_unit
+  | None ->
+    Logs.warn (fun m -> m "No client registered in server state");
+    Lwt.return_unit

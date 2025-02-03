@@ -1,17 +1,10 @@
 (** Server implementation for chat system *)
 
-type client_connection = {
-  socket: Lwt_unix.file_descr;
-  ic: Lwt_io.input_channel;
-  oc: Lwt_io.output_channel;
-  addr: Unix.sockaddr;
-}
-
 (** Server type containing socket and address information *)
 type t =
   { socket : Lwt_unix.file_descr
   ; address : Unix.sockaddr
-  ; mutable current_client : client_connection option }
+  ; mutable current_client : (Lwt_io.output_channel * Unix.sockaddr) option }
 
 (** Create a new server instance *)
 val create_server : int -> t Lwt.t
@@ -29,5 +22,5 @@ val stop_server : t -> unit Lwt.t
 (** Accept connections on the server *)
 val accept_connections : t -> unit Lwt.t
 
-(** Send message to client *)
-val send_message : client_connection -> Bytes.t -> unit Lwt.t
+(** Send message to client, only use for testing purposes *)
+val send_message : t -> Bytes.t -> unit Lwt.t

@@ -41,21 +41,24 @@ UI is a choice - can be just a console.
 ## Build and run
 
 ```
+# Display help
+make help
+
 # Setup all dependencies
 make setup
 
 # Build the application
 make build
 
-# Run the server
-make server port=<port_number>
+# Run the server, default port is 8080
+make server [port=<port_number>]
 
-# Run the client
-make client host=<hostname> port=<port_number>
+# Run the client, default port is 8080, default host is localhost
+make client [host=<hostname>] [port=<port_number>]
 ```
 
 ## Test
-- The tests are written using Alcotest and OUnit.
+- The tests are written using Alcotest.
 
 ```
 make test

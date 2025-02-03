@@ -38,7 +38,6 @@ let handle_ack timestamp =
   Printf.printf "\nMessage acknowledged (RTT: %.2f ms)\n> " rtt;
   flush stdout
 
-
 (* Process user input and send message *)
 let handle_input oc input =
   if input = "/quit"
@@ -75,5 +74,3 @@ let rec input_loop oc =
 (* Main connection handler that manages both input and message loops *)
 let handle_connection ic oc addr_str =
   Lwt.pick [message_loop ic oc addr_str; input_loop oc]
-
-
