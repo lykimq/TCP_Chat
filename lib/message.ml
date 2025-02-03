@@ -70,13 +70,3 @@ let of_bytes bytes =
   with
   | Invalid_argument _ as e -> raise e
   | _ -> raise (Invalid_argument "Invalid message format")
-
-(* Helper function to convert string to chat message *)
-let create_chat_message str = create (Chat (Bytes.of_string str))
-
-(* Helper function to extract string from chat message *)
-let get_chat_content = function
-  | {msg_type = Chat content; _} -> begin
-    try Some (Bytes.to_string content) with _ -> None
-  end
-  | _ -> None

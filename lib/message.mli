@@ -35,10 +35,3 @@ val to_bytes : t -> bytes
 
 (** Convert bytes to message *)
 val of_bytes : bytes -> t
-
-(** Create a chat message from string *)
-val create_chat_message : string -> t
-
-(** Extract string content from chat message *)
-val get_chat_content : t -> string option
-

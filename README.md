@@ -46,3 +46,9 @@ make build
 make server port=<port_number>
 make client host=<hostname> port=<port_number>
 ```
+
+## Test
+
+```
+make test
+```
