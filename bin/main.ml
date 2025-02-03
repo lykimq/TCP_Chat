@@ -35,7 +35,9 @@ let () =
   in
   let main_thread =
     match mode with
-    | `Server -> Server.start_server port >>= fun _server -> Lwt.return_unit
+    | `Server -> Server.create_server port >>= fun server ->
+      Server.accept_connections server >>= fun () -> Lwt.return_unit
     | `Client -> Client.start_client host port
   in
   Lwt_main.run main_thread
+

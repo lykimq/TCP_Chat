@@ -10,9 +10,7 @@ type client_connection = {
 type t =
   { socket : Lwt_unix.file_descr
   ; address : Unix.sockaddr
-  ; mutable running : bool
-  ; mutable current_client : client_connection option
-  ; shutdown_complete : unit Lwt.u * unit Lwt.t }
+  ; mutable current_client : client_connection option }
 
 let create_server port =
   let open Lwt_unix in
@@ -24,13 +22,10 @@ let create_server port =
   bind socket address >>= fun () ->
   listen socket Config.max_connections;
   Logs.debug (fun m -> m "Server created and listening");
-  let thread, waiter = Lwt.wait () in
   Lwt.return
     { socket
     ; address
-    ; running = true
-    ; current_client = None
-    ; shutdown_complete = (waiter, thread) }
+    ; current_client = None }
 
 let handle_client ic oc client_addr =
   Logs.debug (fun m ->
@@ -55,66 +50,67 @@ let stop_server server =
       Lwt.join [Lwt_io.close ic; Lwt_io.close oc; Lwt_unix.close client_connection.socket]
     | None -> Lwt.return_unit
   in
-  server.running <- false;
   cleanup
 
-let start_server port =
-  Logs.info (fun m -> m "Starting server on port %d" port);
-  create_server port >>= fun server ->
-  let rec accept_loop server =
-    if server.running
-    then (
-      Logs.debug (fun m -> m "Waiting for client connection...");
-      Lwt_unix.accept server.socket >>= fun (client_sock, client_addr) ->
-      Logs.debug (fun m ->
-          m "Accepted new connection from %s" (Common.format_addr client_addr) );
-      server.current_client <- Some {socket = client_sock; addr = client_addr; ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock; oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock};
-      let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
-      let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
-      handle_client ic oc client_addr >>= fun () ->
-      Logs.debug (fun m ->
-          m "Client handling completed, cleaning up connection" );
-      server.current_client <- None;
-      Lwt_unix.close client_sock >>= fun () ->
-      Logs.debug (fun m -> m "Client socket closed, continuing accept loop");
-      accept_loop server )
-    else (
-      Logs.debug (fun m -> m "Server stopped, exiting accept loop");
-      Lwt.return_unit )
-  in
-  Logs.debug (fun m -> m "Starting accept loop");
-  accept_loop server >>= fun () ->
-  let _, shutdown_thread = server.shutdown_complete in
-  shutdown_thread
-
 let accept_connections server =
-  server.running <- true;
   let rec accept_loop () =
-    if not server.running
-    then Lwt.return_unit
-    else
-      Lwt.catch
-        (fun () ->
-          Logs.debug (fun m -> m "Waiting for client connection...");
-          Lwt_unix.accept server.socket >>= fun (client_sock, client_addr) ->
-          let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
-          let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
-          (* Set the current client *)
-          server.current_client <- Some {
-            socket = client_sock;
-            addr = client_addr;
-            ic;
-            oc
-          };
-          handle_client ic oc client_addr >>= fun () ->
-          (* Clear the current client after handling *)
-          server.current_client <- None;
-          Lwt_unix.close client_sock >>= fun () ->
-          accept_loop () )
-        (function
-          | Unix.Unix_error (Unix.EBADF, _, _) when not server.running ->
-            Lwt.return_unit
-          | e -> Lwt.fail e )
+    Lwt.catch
+      (fun () ->
+        Logs.debug (fun m -> m "Waiting for client connection...");
+        Lwt_unix.accept server.socket >>= fun (client_sock, client_addr) ->
+        let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
+        let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
+        let client = {
+          socket = client_sock;
+          addr = client_addr;
+          ic;
+          oc
+        } in
+
+        server.current_client <- Some client;
+        Logs.debug (fun m -> m "Client registered in server state");
+
+        Lwt.finalize
+          (fun () ->
+            Lwt.catch
+              (fun () ->
+                handle_client ic oc client_addr >>= fun () ->
+                Logs.debug (fun m -> m "Client handling completed normally");
+                Lwt.return_unit)
+              (fun e ->
+                match e with
+                | End_of_file ->
+                    Logs.debug (fun m -> m "Client disconnected normally");
+                    Lwt.return_unit
+                | e ->
+                    Logs.err (fun m -> m "Error handling client: %s" (Printexc.to_string e));
+                    Lwt.return_unit))
+          (fun () ->
+            (match server.current_client with
+             | Some c when c.socket = client_sock ->
+                 server.current_client <- None;
+                 Logs.debug (fun m -> m "Cleared client from server state")
+             | _ -> ());
+
+            Lwt.catch
+              (fun () ->
+                Lwt.join [
+                  Lwt_io.close ic;
+                  Lwt_io.close oc;
+                  Lwt_unix.close client_sock
+                ])
+              (fun e ->
+                Logs.warn (fun m -> m "Error during cleanup: %s" (Printexc.to_string e));
+                Lwt.return_unit))
+        >>= fun () ->
+        accept_loop ())
+      (function
+        | Unix.Unix_error (Unix.EBADF, _, _) ->
+          Logs.info (fun m -> m "Server stopped, closing accept loop");
+          Lwt.return_unit
+        | e ->
+          Logs.err (fun m -> m "Accept loop error: %s" (Printexc.to_string e));
+          accept_loop ())
   in
   accept_loop ()
 

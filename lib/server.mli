@@ -11,9 +11,7 @@ type client_connection = {
 type t =
   { socket : Lwt_unix.file_descr
   ; address : Unix.sockaddr
-  ; mutable running : bool
-  ; mutable current_client : client_connection option
-  ; shutdown_complete : unit Lwt.u * unit Lwt.t }
+  ; mutable current_client : client_connection option }
 
 (** Create a new server instance *)
 val create_server : int -> t Lwt.t
@@ -24,9 +22,6 @@ val handle_client :
   Lwt_io.output_channel ->
   Unix.sockaddr ->
   unit Lwt.t
-
-(** Start server and begin accepting connections *)
-val start_server : int -> unit Lwt.t
 
 (** Stop server and close all connections *)
 val stop_server : t -> unit Lwt.t

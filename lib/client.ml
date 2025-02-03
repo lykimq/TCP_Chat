@@ -6,8 +6,8 @@ type t =
   ; socket : Lwt_unix.file_descr }
 
 let get_addr host =
-  let he = Unix.gethostbyname host in
-  he.Unix.h_addr_list.(0)
+  let host_name = Unix.gethostbyname host in
+  host_name.Unix.h_addr_list.(0)
 
 (* Connect to server *)
 let connect_to_server host port =

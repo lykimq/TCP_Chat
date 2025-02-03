@@ -1,4 +1,4 @@
-open OUnit2
+open Alcotest
 open Lwt.Infix
 open TCP_Chat
 
@@ -18,7 +18,6 @@ let setup_test_environment port =
   (server, accept_thread)
 
 let cleanup_server (server : Server.t) accept_thread =
-  server.running <- false;
   Lwt.cancel accept_thread;  (* Cancel the accept thread first *)
   Lwt.catch
     (fun () ->
@@ -28,14 +27,15 @@ let cleanup_server (server : Server.t) accept_thread =
     (function
       | Unix.Unix_error (Unix.EBADF, _, _) -> Lwt.return_unit
       | e -> Lwt.fail e)
-let test_server_client_connection _ =
+
+let test_server_client_connection () =
   let port = 8080 in
   let server, accept_thread = setup_test_environment port in
 
   let client_test =
     Client.connect_to_server Config.default_host port >>= fun client ->
     (* Wait for client to be registered *)
-    Lwt_unix.sleep 0.5 >>= fun () ->
+    Lwt_unix.sleep 1.0 >>= fun () ->
 
     let test_message = "Hello, Server!" in
     Client.send_message client (Bytes.of_string test_message) >>= fun () ->
@@ -54,22 +54,22 @@ let test_server_client_connection _ =
     | None ->
         Logs.err (fun m -> m "No client registered in server state");
         Lwt.fail_with "No client connected") >>= fun () ->
-    Lwt_unix.sleep 0.5 >>= fun () ->
 
-
-    Client.stop_client client >>= fun () ->
     (* Wait for cleanup *)
+    Lwt_unix.sleep 0.5 >>= fun () ->
+    Client.stop_client client >>= fun () ->
     Lwt_unix.sleep 0.5
   in
 
   (* Run client test and cleanup *)
   wait_for client_test;
   wait_for (cleanup_server server accept_thread);
-  assert_bool "Test completed" true
+  Alcotest.(check bool) "Test completed" true true
 
-let suite =
-  "server_client_test"
-  >::: [ "test_server_client_connection" >:: test_server_client_connection ]
+
+let connection_tests =
+  [ test_case "Server client connection" `Quick test_server_client_connection ]
 
 let () =
-  run_test_tt_main suite
+  Alcotest.run "TCP Chat Tests"
+  [ "connection", connection_tests ]
