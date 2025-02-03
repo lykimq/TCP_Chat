@@ -10,23 +10,6 @@ val calculate_rtt : float -> float
 (** Calculate round-trip time (RTT) in milliseconds *)
 
 val format_addr : Unix.sockaddr -> string
-(** Convert network address to string representation *)
-
-val handle_message_content : bytes -> string -> unit
-(** Display received chat message with sender information *)
-
-val handle_ack : float -> unit
-(** Display acknowledgment with round-trip time *)
-
-val handle_input : Lwt_io.output_channel -> string -> unit Lwt.t
-(** Process user input and send message to peer *)
-
-val message_loop :
-  Lwt_io.input_channel -> Lwt_io.output_channel -> string -> unit Lwt.t
-(** Main message receiving loop *)
-
-val input_loop : Lwt_io.output_channel -> unit Lwt.t
-(** Main input reading loop *)
 
 val handle_connection :
   Lwt_io.input_channel -> Lwt_io.output_channel -> string -> unit Lwt.t
