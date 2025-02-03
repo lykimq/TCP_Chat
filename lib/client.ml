@@ -44,43 +44,6 @@ let cleanup_client client =
       | Unix.Unix_error (Unix.EBADF, _, _) -> Lwt.return_unit | e -> Lwt.fail e
       )
 
-(* Handle connection retry logic *)
-let rec connect_with_retry ?(attempt = 1) ~host ~port () =
-  let max_attempts = Config.max_retry_attempts in
-  let delay =
-    min (Config.reconnect_delay *. float_of_int attempt) Config.max_delay
-  in
-
-  let handle_error = function
-    | Unix.Unix_error (error, _, _) as e -> begin
-      match error with
-      | Unix.ECONNREFUSED | Unix.ECONNRESET | Unix.ECONNABORTED
-      | Unix.ENETUNREACH ->
-        let log_and_retry () =
-          Logs.warn (fun m ->
-              m
-                "Connection attempt %d/%d failed: %s. Retrying in %.1f \
-                 seconds..."
-                attempt max_attempts (Unix.error_message error) delay );
-          Lwt_unix.sleep delay >>= fun () ->
-          connect_with_retry ~attempt:(attempt + 1) ~host ~port ()
-        in
-        if attempt > max_attempts
-        then Lwt.fail (Failure "Maximum connection attempts exceeded")
-        else log_and_retry ()
-      | _ ->
-        Logs.err (fun m ->
-            m "Fatal connection error: %s" (Printexc.to_string e) );
-        Lwt.fail e
-    end
-    | e ->
-      Logs.err (fun m ->
-          m "Failed to connect to server: %s" (Printexc.to_string e) );
-      Lwt.fail e
-  in
-
-  Lwt.catch (fun () -> connect_to_server host port) handle_error
-
 (* Handle message receiving *)
 let start_receiver ~client ~should_exit =
   Lwt.catch
@@ -111,7 +74,7 @@ let rec process_user_input ~client ~should_exit () =
 let start_client host port =
   Logs.info (fun m -> m "Starting client on %s:%d" host port);
 
-  connect_with_retry ~host ~port () >>= fun client ->
+  connect_to_server host port >>= fun client ->
   Logs.info (fun m ->
       m "Connected to server. Type your messages (or /quit to exit):" );
   Printf.printf "> ";

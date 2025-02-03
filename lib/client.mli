@@ -24,3 +24,5 @@ val start_client : string -> int -> unit Lwt.t
 
 (** Stop client gracefully *)
 val stop_client : t -> unit Lwt.t
+
+val cleanup_client : t -> unit Lwt.t
