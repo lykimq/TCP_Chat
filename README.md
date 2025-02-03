@@ -41,13 +41,21 @@ UI is a choice - can be just a console.
 ## Build and run
 
 ```
+# Setup all dependencies
+make setup
+
+# Build the application
 make build
 
+# Run the server
 make server port=<port_number>
+
+# Run the client
 make client host=<hostname> port=<port_number>
 ```
 
 ## Test
+- The tests are written using Alcotest and OUnit.
 
 ```
 make test

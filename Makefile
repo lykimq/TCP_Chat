@@ -1,4 +1,4 @@
-.PHONY: build clean server client test
+.PHONY: build clean server client test setup
 
 # Default build
 build:
@@ -27,3 +27,8 @@ client: build
 test: build
 	dune runtest --force
 	@echo "All tests completed."
+
+setup:
+	opam update
+	opam install . --deps-only
+	@echo "Setup completed."
