@@ -19,6 +19,43 @@ A robust TCP-based chat application implemented in OCaml that enables real-time 
   - Protocol-agnostic message handling (supports any byte values/encodings)
   - Single client per server design
 
+## Technical Design
+
+### Architecture
+- **Client-Server Model**: Single server handling one client connection
+- **Asynchronous I/O**: Built with Lwt for non-blocking operations
+- **Binary Protocol**: Custom message format for efficient network communication
+
+### Message Protocol
+```
+[Header]
+- 8 bytes: Timestamp (float)
+- 1 byte: Message Type
+  - 0x00: Ack message
+  - 0x01: Chat message
+
+[Body]
+For Chat:
+- 4 bytes: Content length (int32)
+- N bytes: Message content
+
+For Ack:
+- 8 bytes: Acknowledgment timestamp
+```
+
+### Core Components
+- **Server**: Manages TCP connections and message routing
+- **Client**: Handles user input/output and server communication
+- **Message Module**: Binary message serialization/deserialization
+- **Common Utilities**: Shared network and logging functionality
+
+### Key Features
+- Binary message format for minimal overhead
+- Fixed-size headers for fast parsing
+- Asynchronous message handling
+- Robust error recovery
+- Connection state management
+
 ## Prerequisites
 
 - Linux operating system

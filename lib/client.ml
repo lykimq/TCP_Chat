@@ -32,7 +32,12 @@ let send_message (t : t) content =
   let message = Message.create (Message.Chat content) in
   Common.write_message t.oc message
 
-(* Clean up client connections *)
+(* Clean shutdown handling for client connections:
+   - Closes input channel
+   - Closes output channel
+   - Closes socket
+   - Handles EBADF errors (already closed)
+   - Propagates other errors for proper handling *)
 let cleanup_client client =
   Lwt.catch
     (fun () ->
@@ -44,7 +49,10 @@ let cleanup_client client =
       | Unix.Unix_error (Unix.EBADF, _, _) -> Lwt.return_unit | e -> Lwt.fail e
       )
 
-(* Handle message receiving *)
+(* Message receiver with clean shutdown:
+   - Handles connection errors
+   - Sets should_exit flag on socket closure
+   - Ensures graceful termination *)
 let start_receiver ~client ~should_exit =
   Lwt.catch
     (fun () -> handle_connection client)
@@ -54,7 +62,10 @@ let start_receiver ~client ~should_exit =
         Lwt.return_unit
       | e -> Lwt.fail e )
 
-(* Handle user input processing *)
+(* User input processing with clean shutdown:
+   - Checks should_exit flag for graceful termination
+   - Handles /quit command
+   - Ensures proper message sending before exit *)
 let rec process_user_input ~client ~should_exit () =
   if !should_exit
   then Lwt.return_unit
@@ -70,7 +81,11 @@ let rec process_user_input ~client ~should_exit () =
       flush stdout;
       process_user_input ~client ~should_exit ()
 
-(* Main client entry point *)
+(* Main client entry point with clean shutdown:
+   - Sets up connection
+   - Handles both receiver and input threads
+   - Ensures cleanup on exit
+   - Logs connection status *)
 let start_client host port =
   Logs.info (fun m -> m "Starting client on %s:%d" host port);
 
@@ -89,7 +104,11 @@ let start_client host port =
   Logs.info (fun m -> m "Client disconnected");
   Lwt.return_unit
 
-(* Stop client gracefully *)
+(* Graceful client shutdown:
+   - Sends final quit message
+   - Cleans up all connections
+   - Handles already closed connections
+   - Logs shutdown status *)
 let stop_client client =
   Logs.info (fun m -> m "Stopping client connection...");
   Lwt.catch

@@ -39,6 +39,12 @@ let stop_server server =
   in
   cleanup
 
+(* Clean shutdown handling for client connections:
+   - Closes input channel
+   - Closes output channel
+   - Closes socket
+   - Handles EBADF errors gracefully (already closed)
+   - Logs any other errors for debugging *)
 let cleanup_client_connection ic oc client_sock =
   Lwt.catch
     (fun () ->
@@ -50,6 +56,10 @@ let cleanup_client_connection ic oc client_sock =
         Logs.err (fun m -> m "Error during cleanup: %s" (Printexc.to_string e));
         Lwt.return_unit )
 
+(* Graceful error handling for client connections:
+   - Handles normal client disconnection (End_of_file)
+   - Logs other errors for debugging
+   - Ensures clean state transition *)
 let handle_client_error = function
   | End_of_file ->
     Logs.debug (fun m -> m "Client disconnected normally");
@@ -58,6 +68,9 @@ let handle_client_error = function
     Logs.err (fun m -> m "Error handling client: %s" (Printexc.to_string e));
     Lwt.return_unit
 
+(* Updates server state after client disconnection:
+   - Clears client from server state if it matches
+   - Ensures clean state transition for next client *)
 let update_client_state server client_addr =
   match server.current_client with
   | Some (_, addr) when addr = client_addr ->
@@ -65,6 +78,12 @@ let update_client_state server client_addr =
     Logs.debug (fun m -> m "Cleared client from server state")
   | _ -> ()
 
+(* Handles a single client connection with clean shutdown:
+   - Sets up input/output channels
+   - Registers client in server state
+   - Uses Lwt.finalize to ensure cleanup happens
+   - Handles both normal and error cases
+   - Updates server state after client disconnection *)
 let handle_single_client server client_sock client_addr =
   let ic = Lwt_io.of_fd ~mode:Lwt_io.Input client_sock in
   let oc = Lwt_io.of_fd ~mode:Lwt_io.Output client_sock in
@@ -83,6 +102,11 @@ let handle_single_client server client_sock client_addr =
       update_client_state server client_addr;
       cleanup_client_connection ic oc client_sock )
 
+(* Main server accept loop with clean shutdown handling:
+   - Catches EBADF errors (socket closed)
+   - Logs server stop
+   - Recovers from other errors to continue accepting
+   - Ensures server can be stopped gracefully *)
 let accept_connections server =
   let rec accept_loop () =
     Lwt.catch
