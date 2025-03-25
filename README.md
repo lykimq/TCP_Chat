@@ -60,6 +60,7 @@ For Ack:
 
 #### 1. Asynchronous I/O with Lwt
 **Chosen**: Lwt (Lightweight Threads) for asynchronous operations
+
 **Alternatives Considered**:
 - **Native Threads**: Rejected due to higher overhead (each thread needs it own stack (1MB+)), complex synchronization (need mutexes, conditions, etc.), and resource intensity (many threads = high memory usage)
 - **Event-driven with callbacks**: Rejected due to callback hell (make code hard to read) and harder error handling (errors need to be propagated through each callback).
