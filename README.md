@@ -109,6 +109,7 @@ For Ack:
 
 **Alternatives Considered**:
 - **Variable-length Headers**: Rejected due to complex parsing and potential buffer overflow risks
+
   Example of problematic variable-length header:
   ```
   "Content-Length: 1234\r\n"  // 20 bytes
@@ -122,6 +123,7 @@ For Ack:
   - **Performance Impact**: String operations and memory allocations slow down processing
 
 - **No Headers**: Rejected due to lack of message type identification and timing information
+
   Example of problematic no-header approach:
   ```
   "Hello, how are you?"  // How to know if this is a chat message or acknowledgment?
