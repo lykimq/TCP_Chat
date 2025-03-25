@@ -18,28 +18,27 @@ let create msg_type = {msg_type; timestamp = Unix.gettimeofday ()}
 (* Binary encoding helper functions *)
 
 (* Writes a float value as 8 bytes in big-endian format
-   - Uses IEEE 754 double-precision representation
    - Converts float to 64-bit integer for storage *)
 let write_float buf f =
   let bytes = Bytes.create 8 in
   Bytes.set_int64_be bytes 0 (Int64.bits_of_float f);
   Buffer.add_bytes buf bytes
 
-(* Reads a float value from 8 bytes in big-endian format
+(* Reads a float value from 8 bytes
    - Converts 64-bit integer back to float
    - offset: Starting position in the byte array *)
 let read_float bytes offset =
   let n = Bytes.get_int64_be bytes offset in
   Int64.float_of_bits n
 
-(* Writes a 32-bit integer as 4 bytes in big-endian format
+(* Writes a 32-bit integer as 4 bytes
    - Used for message content length *)
 let write_int32 buf n =
   let bytes = Bytes.create 4 in
   Bytes.set_int32_be bytes 0 n;
   Buffer.add_bytes buf bytes
 
-(* Reads a 32-bit integer from 4 bytes in big-endian format
+(* Reads a 32-bit integer from 4 bytes
    - Used for message content length
    - offset: Starting position in the byte array *)
 let read_int32 bytes offset = Bytes.get_int32_be bytes offset
