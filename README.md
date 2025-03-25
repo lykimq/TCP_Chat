@@ -68,6 +68,7 @@ For Ack:
 
 #### 2. Binary Protocol Design
 **Chosen**: Custom binary message format
+
 **Alternatives Considered**:
 - **JSON/XML**: Rejected due to larger message sizes, complex parsing, and unnecessary overhead
   Example of same message in different formats:
@@ -105,6 +106,7 @@ For Ack:
 
 #### 3. Fixed-Size Headers
 **Chosen**: Fixed-size message headers (9 bytes)
+
 **Alternatives Considered**:
 - **Variable-length Headers**: Rejected due to complex parsing and potential buffer overflow risks
   Example of problematic variable-length header:
